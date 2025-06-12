@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Form, redirect } from "react-router-dom";
+import { Form, redirect, useActionData, useNavigation } from "react-router-dom";
 import { createOrder } from "../../services/apiRestaurant";
 
 // https://uibakery.io/regex-library/phone-number
 const isValidPhone = (str) =>
-  /^\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/.test(
+  /((\+*)((0[ -]*)*|((91 )*))((\d{12})+|(\d{10})+))|\d{5}([- ]*)\d{6}/.test(
     str
   );
 
@@ -35,6 +35,10 @@ const fakeCart = [
 function CreateOrder() {
   // const [withPriority, setWithPriority] = useState(false);
   const cart = fakeCart;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === 'submitting';
+
+  const formErrors = useActionData();
 
   return (
     <div>
@@ -51,6 +55,7 @@ function CreateOrder() {
           <div>
             <input type="tel" name="phone" required />
           </div>
+          {formErrors?.phone && <p>{formErrors.phone}</p>}
         </div>
 
         <div>
@@ -72,7 +77,7 @@ function CreateOrder() {
         </div>
 
         <div>
-          <button>Order now</button>
+          <button disabled={isSubmitting}>{isSubmitting ? `Ordering...` : `Order now`}</button>
         </div>
 
         {/* HIDDEN FIELDS */}
@@ -92,6 +97,11 @@ export async function action({ request }) {
     priority: data.priority === 'on',
   }
 
+  const errors = {};
+  if (!isValidPhone(order.phone)) errors.phone = 'Invalid phone number. Please enter a valid phone number.';
+  if (Object.keys(errors).length > 0) return errors;
+
+  // Create new order and redirect if input is valid
   const newOrder = await createOrder(order);
 
   return redirect(`/order/${newOrder.id}`)
